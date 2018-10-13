@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import scipy.optimize as spo
 import matplotlib.pyplot as plt
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.datasets.samples_generator import make_blobs
@@ -12,8 +13,7 @@ class LossFunction:
 class MeanSquareLoss(LossFunction):
 
     def __call__(self, y, y_pred):
-
-        return 0.5 * np.mean((y - ypred)**2)
+        return 0.5 * np.mean((y - y_pred)**2)
 
     def negative_gradient(self, y, y_pred):
         return y - y_pred
@@ -40,9 +40,7 @@ class GBR:
                                                      max_depth=self.max_depth))
         self.gammas.append(1.0)
         self.estimators[0].fit(X, y)
-        print('y values:', y[:5])
         pred_y_vals = self.estimators[0].predict(X)
-        print('pred y values:', pred_y_vals[:5])
 
         # fit the rest of them
         for i in range(2, self.n_estimators):
@@ -53,14 +51,18 @@ class GBR:
 
             # fit the tree
             y_prev_pred = self.predict(X, n=i-1)
-            print('Previous predictions are:', y_prev_pred[:5])
-            print('Real values are:', y[:5])
             y_i = self.loss.negative_gradient(y, y_prev_pred)
             tree_i.fit(X, y_i)
 
             # fit the normalisation factor
+            y_pred_i = tree_i.predict(X)
+            def loss(gamma):
+                return self.loss(y, y_prev_pred + gamma*y_pred_i)
+            best_gamma = spo.minimize(loss, 1.0).x[0]
+
+            # append the fitted values (estimators and gamma factors)
             self.estimators.append(tree_i)
-            self.gammas.append(1.0)
+            self.gammas.append(best_gamma)
 
     def predict(self, X, n=None):
 
@@ -82,7 +84,7 @@ class GBR:
         return predictions
 
 
-def plot_decision_surface(clf, X, y, plot_step = 0.2, cmap='coolwarm', figsize=(12,8)):
+def plot_decision_surface(clf, X, y, plot_step = 0.05, cmap='coolwarm', figsize=(12,8)):
     """Plot the prediction of clf on X and y, visualize training points"""
     print("##########################")
     print("Plotting decision boundary")
@@ -92,7 +94,7 @@ def plot_decision_surface(clf, X, y, plot_step = 0.2, cmap='coolwarm', figsize=(
     x0_grid, x1_grid = np.meshgrid(np.arange(X[:, 0].min() - 1, X[:, 0].max() + 1, plot_step),
                          np.arange(X[:, 1].min() - 1, X[:, 1].max() + 1, plot_step))
     y_pred_grid = clf.predict(np.stack([x0_grid.ravel(), x1_grid.ravel()],axis=1)).reshape(x1_grid.shape)
-    plt.contourf(x0_grid, x1_grid, y_pred_grid, cmap=cmap, alpha=0.99, vmin=vmin, vmax=vmax)
+    plt.contourf(x0_grid, x1_grid, y_pred_grid, cmap=cmap, vmin=vmin, vmax=vmax)
     y_pred = clf.predict(X)    
     plt.scatter(*X.T, c=y, cmap=cmap, marker='x', vmin=vmin, vmax=vmax)
     plt.colorbar()
@@ -101,21 +103,26 @@ def plot_decision_surface(clf, X, y, plot_step = 0.2, cmap='coolwarm', figsize=(
 def main():
     
     # create synthetic data
-    N_p = 1000
-    N_c = 3
-    random_state=42
-    max_depth = 3
+    random_state = 42
     np.random.seed(random_state)
-    X, y = make_blobs(n_samples=N_p, centers=N_c, n_features=2, center_box=(-5, 5), random_state=random_state)
+    N = 1000
+    N_groups = 3
+    X, y = make_blobs(n_samples=N, centers=N_groups, n_features=2, center_box=(-5, 5), random_state=random_state)
     y = y + np.random.normal(0, 0.1, y.shape[0])
     df = pd.DataFrame(dict(x=X[:,0], y=X[:,1], label=y))
+
+    # model parameters
+    max_depth = 3
+    n_estimators = 5
+    criterion='mae'
 
     # train a model
     which = 'gbr'
     if which == 'dtr':
-        clf = DecisionTreeRegressor(criterion='friedman_mse', random_state=random_state, max_depth=max_depth)
+        clf = DecisionTreeRegressor(criterion=criterion, random_state=random_state, max_depth=max_depth)
     elif which == 'gbr':
-        clf = GBR(loss='ls', random_state=random_state, n_estimators=4, max_depth=max_depth)
+        clf = GBR(loss='ls', random_state=random_state, n_estimators=n_estimators, max_depth=max_depth,
+                  criterion=criterion)
     clf.fit(X, y)
 
     # visualise the data
