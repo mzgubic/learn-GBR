@@ -20,13 +20,14 @@ class MeanSquareLoss(LossFunction):
 
 class GBR:
 
-    def __init__(self, loss, learning_rate=0.1, n_estimators=2, criterion='friedman_mse', random_state='42'):
+    def __init__(self, loss, learning_rate=0.1, n_estimators=2, criterion='friedman_mse', random_state='42', max_depth=3):
 
         if loss == 'ls':
             self.loss = MeanSquareLoss()
         self.n_estimators = n_estimators
         self.random_state = random_state
         self.learning_rate = learning_rate
+        self.max_depth = max_depth
         self.estimators = [] # estimators
         self.gammas = [] # and their weights
         self.criterion = criterion
@@ -34,34 +35,49 @@ class GBR:
     def fit(self, X, y):
 
         # fit the initial tree
-        self.estimators.append(DecisionTreeRegressor(criterion=self.criterion, random_state=self.random_state))
+        print('Fitting 1 st estimator in the sequence')
+        self.estimators.append(DecisionTreeRegressor(criterion=self.criterion, random_state=self.random_state,
+                                                     max_depth=self.max_depth))
         self.gammas.append(1.0)
         self.estimators[0].fit(X, y)
+        print('y values:', y[:5])
+        pred_y_vals = self.estimators[0].predict(X)
+        print('pred y values:', pred_y_vals[:5])
 
         # fit the rest of them
-        for i in range(1, self.n_estimators):
-            print('Fitting ', i, 'th estimator in the sequence')
-            tree_i = DecisionTreeRegressor(criterion=self.criterion, random_state=self.random_state)
+        for i in range(2, self.n_estimators):
+            print()
+            print('Fitting', i, 'th estimator in the sequence')
+            tree_i = DecisionTreeRegressor(criterion=self.criterion, random_state=self.random_state,
+                                           max_depth=self.max_depth)
 
-            # TODO: change below to make it actually work
-            tree_i.fit(X, y)
+            # fit the tree
+            y_prev_pred = self.predict(X, n=i-1)
+            print('Previous predictions are:', y_prev_pred[:5])
+            print('Real values are:', y[:5])
+            y_i = self.loss.negative_gradient(y, y_prev_pred)
+            tree_i.fit(X, y_i)
+
+            # fit the normalisation factor
             self.estimators.append(tree_i)
             self.gammas.append(1.0)
-
 
     def predict(self, X, n=None):
 
         # predict on all if it is not specified
         if n==None:
             n = len(self.estimators)
+        print('    Called to predict {n}.'.format(n=n))
 
         # sum predictions over all classifiers up to n
         predictions = np.zeros(shape=X.shape[0])
         for i, est in enumerate(self.estimators):
-            print('Predicting estimator {i}/{n}.'.format(i=i+1, n=n))
+            if i == n:
+                break
+            print('    Predicting estimator {i}/{n}.'.format(i=i+1, n=n))
             preds = est.predict(X)
             predictions += self.gammas[i] * preds
-            print('Current predictions', predictions[:5])
+            print('    Current predictions', predictions[:5])
 
         return predictions
 
@@ -88,6 +104,7 @@ def main():
     N_p = 1000
     N_c = 3
     random_state=42
+    max_depth = 3
     np.random.seed(random_state)
     X, y = make_blobs(n_samples=N_p, centers=N_c, n_features=2, center_box=(-5, 5), random_state=random_state)
     y = y + np.random.normal(0, 0.1, y.shape[0])
@@ -96,9 +113,9 @@ def main():
     # train a model
     which = 'gbr'
     if which == 'dtr':
-        clf = DecisionTreeRegressor(criterion='friedman_mse', random_state=random_state)
+        clf = DecisionTreeRegressor(criterion='friedman_mse', random_state=random_state, max_depth=max_depth)
     elif which == 'gbr':
-        clf = GBR(loss='dummy', random_state=random_state, n_estimators=4)
+        clf = GBR(loss='ls', random_state=random_state, n_estimators=4, max_depth=max_depth)
     clf.fit(X, y)
 
     # visualise the data
