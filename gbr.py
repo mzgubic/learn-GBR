@@ -70,13 +70,16 @@ def plot_decision_surface(clf, X, y, plot_step = 0.2, cmap='coolwarm', figsize=(
     """Plot the prediction of clf on X and y, visualize training points"""
     print("##########################")
     print("Plotting decision boundary")
+    vmin = np.min(y)
+    vmax = np.max(y)
     plt.figure(figsize=figsize)
     x0_grid, x1_grid = np.meshgrid(np.arange(X[:, 0].min() - 1, X[:, 0].max() + 1, plot_step),
                          np.arange(X[:, 1].min() - 1, X[:, 1].max() + 1, plot_step))
     y_pred_grid = clf.predict(np.stack([x0_grid.ravel(), x1_grid.ravel()],axis=1)).reshape(x1_grid.shape)
-    plt.contourf(x0_grid, x1_grid, y_pred_grid, cmap=cmap, alpha=0.5)  
+    plt.contourf(x0_grid, x1_grid, y_pred_grid, cmap=cmap, alpha=0.99, vmin=vmin, vmax=vmax)
     y_pred = clf.predict(X)    
-    plt.scatter(*X.T, c=y, cmap=cmap, marker='x') 
+    plt.scatter(*X.T, c=y, cmap=cmap, marker='x', vmin=vmin, vmax=vmax)
+    plt.colorbar()
     plt.show()
 
 def main():
@@ -95,7 +98,7 @@ def main():
     if which == 'dtr':
         clf = DecisionTreeRegressor(criterion='friedman_mse', random_state=random_state)
     elif which == 'gbr':
-        clf = GBR(loss='dummy', random_state=random_state)
+        clf = GBR(loss='dummy', random_state=random_state, n_estimators=4)
     clf.fit(X, y)
 
     # visualise the data
