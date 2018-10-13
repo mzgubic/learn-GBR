@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.datasets.samples_generator import make_blobs
+from sklearn.model_selection import train_test_split
 
 class LossFunction:
     
@@ -110,7 +111,7 @@ def main():
     N_groups = 3
     X, y = make_blobs(n_samples=N, centers=N_groups, n_features=2, center_box=(-5, 5), random_state=random_state)
     y = y + np.random.normal(0, 0.1, y.shape[0])
-    df = pd.DataFrame(dict(x=X[:,0], y=X[:,1], label=y))
+    X_train, X_test, y_train, y_test = train_test_split(X, y)
 
     # model parameters
     max_depth = 3
@@ -123,15 +124,21 @@ def main():
               'criterion':criterion, 'learning_rate':learning_rate}
     home_cooked_gbr = GBR(**kwargs)
     sklearn_gbr = GradientBoostingRegressor(**kwargs)
-    # train the model
-    home_cooked_gbr.fit(X, y)
-    sklearn_gbr.fit(X, y)
+
+    # train the models
+    home_cooked_gbr.fit(X_train, y_train)
+    sklearn_gbr.fit(X_train, y_train)
 
     # visualise the data
-    plot_decision_surface(home_cooked_gbr, X, y)
-    plot_decision_surface(sklearn_gbr, X, y)
+    plot_decision_surface(home_cooked_gbr, X_train, y_train)
+    plot_decision_surface(sklearn_gbr, X_train, y_train)
 
     # see how the model does on the test set
+    home_pred_y = home_cooked_gbr.predict(X_test)
+    sklearn_pred_y = sklearn_gbr.predict(X_test)
+    print('Test loss for home cooked:', home_cooked_gbr.loss(y_test, home_pred_y))
+    print('Test loss for sklearn    :', home_cooked_gbr.loss(y_test, sklearn_pred_y))
+
 
 
 if __name__ == '__main__':
