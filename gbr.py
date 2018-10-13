@@ -17,14 +17,14 @@ class GBR:
     def fit(self, X, y):
 
         # fit the initial tree
-        self._estimators.append(DecisionTreeRegressor(criterion=self.criterion))
-        self._estimators.fit(X, y)
+        self.estimators.append(DecisionTreeRegressor(criterion=self.criterion, random_state=self.random_state))
+        self.estimators[0].fit(X, y)
 
         # fit the rest of them
 
     def predict(self, X):
 
-        predictions = np.zeros(shape=y.shape)
+        predictions = np.zeros(shape=X.shape[0])
         for est in self.estimators:
             preds = est.predict(X)
             predictions += preds
@@ -55,7 +55,11 @@ def main():
     df = pd.DataFrame(dict(x=X[:,0], y=X[:,1], label=y))
 
     # train a model
-    clf = DecisionTreeRegressor(random_state=random_state)
+    which = 'dtr'
+    if which == 'dtr':
+        clf = DecisionTreeRegressor(criterion='friedman_mse', random_state=random_state)
+    elif which == 'gbr':
+        clf = GBR(loss='dummy', random_state=random_state)
     clf.fit(X, y)
 
     # visualise the data
