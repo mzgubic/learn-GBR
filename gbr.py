@@ -4,36 +4,72 @@ import matplotlib.pyplot as plt
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.datasets.samples_generator import make_blobs
 
+class LossFunction:
+    
+    def __init__(self):
+        pass
+
+class MeanSquareLoss(LossFunction):
+
+    def __call__(self, y, y_pred):
+
+        return 0.5 * np.mean((y - ypred)**2)
+
+    def negative_gradient(self, y, y_pred):
+        return y - y_pred
+
 class GBR:
 
-    def __init__(self, loss, n_estimators=2, criterion='friedman_mse', random_state='42'):
+    def __init__(self, loss, learning_rate=0.1, n_estimators=2, criterion='friedman_mse', random_state='42'):
 
-        self.loss = loss
+        if loss == 'ls':
+            self.loss = MeanSquareLoss()
         self.n_estimators = n_estimators
         self.random_state = random_state
-        self.estimators = []
+        self.learning_rate = learning_rate
+        self.estimators = [] # estimators
+        self.gammas = [] # and their weights
         self.criterion = criterion
 
     def fit(self, X, y):
 
         # fit the initial tree
         self.estimators.append(DecisionTreeRegressor(criterion=self.criterion, random_state=self.random_state))
+        self.gammas.append(1.0)
         self.estimators[0].fit(X, y)
 
         # fit the rest of them
+        for i in range(1, self.n_estimators):
+            print('Fitting ', i, 'th estimator in the sequence')
+            tree_i = DecisionTreeRegressor(criterion=self.criterion, random_state=self.random_state)
 
-    def predict(self, X):
+            # TODO: change below to make it actually work
+            tree_i.fit(X, y)
+            self.estimators.append(tree_i)
+            self.gammas.append(1.0)
 
+
+    def predict(self, X, n=None):
+
+        # predict on all if it is not specified
+        if n==None:
+            n = len(self.estimators)
+
+        # sum predictions over all classifiers up to n
         predictions = np.zeros(shape=X.shape[0])
-        for est in self.estimators:
+        for i, est in enumerate(self.estimators):
+            print('Predicting estimator {i}/{n}.'.format(i=i+1, n=n))
             preds = est.predict(X)
-            predictions += preds
+            predictions += self.gammas[i] * preds
+            print('Current predictions', predictions[:5])
 
         return predictions
 
 
 def plot_decision_surface(clf, X, y, plot_step = 0.2, cmap='coolwarm', figsize=(12,8)):
     """Plot the prediction of clf on X and y, visualize training points"""
+    print("##########################")
+    print("Plotting decision boundary")
     plt.figure(figsize=figsize)
     x0_grid, x1_grid = np.meshgrid(np.arange(X[:, 0].min() - 1, X[:, 0].max() + 1, plot_step),
                          np.arange(X[:, 1].min() - 1, X[:, 1].max() + 1, plot_step))
@@ -55,7 +91,7 @@ def main():
     df = pd.DataFrame(dict(x=X[:,0], y=X[:,1], label=y))
 
     # train a model
-    which = 'dtr'
+    which = 'gbr'
     if which == 'dtr':
         clf = DecisionTreeRegressor(criterion='friedman_mse', random_state=random_state)
     elif which == 'gbr':
