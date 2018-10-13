@@ -119,20 +119,19 @@ def main():
     learning_rate = 0.1
 
     # choose the model
-    which = 'GBR'
-    if which == 'dtr':
-        clf = DecisionTreeRegressor(criterion=criterion, random_state=random_state, max_depth=max_depth)
-    elif which == 'gbr':
-        clf = GBR(loss='ls', random_state=random_state, n_estimators=n_estimators, max_depth=max_depth,
-                  criterion=criterion, learning_rate=learning_rate)
-    elif which == 'GBR':
-        clf = GradientBoostingRegressor(loss='ls', random_state=random_state, n_estimators=n_estimators,
-                                        max_depth=max_depth, criterion=criterion, learning_rate=learning_rate)
+    kwargs = {'loss':'ls', 'random_state':random_state, 'n_estimators':n_estimators, 'max_depth':max_depth,
+              'criterion':criterion, 'learning_rate':learning_rate}
+    home_cooked_gbr = GBR(**kwargs)
+    sklearn_gbr = GradientBoostingRegressor(**kwargs)
     # train the model
-    clf.fit(X, y)
+    home_cooked_gbr.fit(X, y)
+    sklearn_gbr.fit(X, y)
 
     # visualise the data
-    plot_decision_surface(clf, X, y)
+    plot_decision_surface(home_cooked_gbr, X, y)
+    plot_decision_surface(sklearn_gbr, X, y)
+
+    # see how the model does on the test set
 
 
 if __name__ == '__main__':
