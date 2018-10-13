@@ -3,6 +3,7 @@ import pandas as pd
 import scipy.optimize as spo
 import matplotlib.pyplot as plt
 from sklearn.tree import DecisionTreeRegressor
+from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.datasets.samples_generator import make_blobs
 
 class LossFunction:
@@ -35,7 +36,7 @@ class GBR:
     def fit(self, X, y):
 
         # fit the initial tree
-        print('Fitting 1 st estimator in the sequence')
+        #print('Fitting 1 st estimator in the sequence')
         self.estimators.append(DecisionTreeRegressor(criterion=self.criterion, random_state=self.random_state,
                                                      max_depth=self.max_depth))
         self.gammas.append(1.0)
@@ -44,8 +45,8 @@ class GBR:
 
         # fit the rest of them
         for i in range(2, self.n_estimators):
-            print()
-            print('Fitting', i, 'th estimator in the sequence')
+            #print()
+            #print('Fitting', i, 'th estimator in the sequence')
             tree_i = DecisionTreeRegressor(criterion=self.criterion, random_state=self.random_state,
                                            max_depth=self.max_depth)
 
@@ -62,24 +63,24 @@ class GBR:
 
             # append the fitted values (estimators and gamma factors)
             self.estimators.append(tree_i)
-            self.gammas.append(best_gamma)
+            self.gammas.append(best_gamma*self.learning_rate)
 
     def predict(self, X, n=None):
 
         # predict on all if it is not specified
         if n==None:
             n = len(self.estimators)
-        print('    Called to predict {n}.'.format(n=n))
+        #print('    Called to predict {n}.'.format(n=n))
 
         # sum predictions over all classifiers up to n
         predictions = np.zeros(shape=X.shape[0])
         for i, est in enumerate(self.estimators):
             if i == n:
                 break
-            print('    Predicting estimator {i}/{n}.'.format(i=i+1, n=n))
+            #print('    Predicting estimator {i}/{n}.'.format(i=i+1, n=n))
             preds = est.predict(X)
             predictions += self.gammas[i] * preds
-            print('    Current predictions', predictions[:5])
+            #print('    Current predictions', predictions[:5])
 
         return predictions
 
@@ -113,16 +114,21 @@ def main():
 
     # model parameters
     max_depth = 3
-    n_estimators = 5
-    criterion='mae'
+    n_estimators = 100
+    criterion='friedman_mse'
+    learning_rate = 0.1
 
-    # train a model
-    which = 'gbr'
+    # choose the model
+    which = 'GBR'
     if which == 'dtr':
         clf = DecisionTreeRegressor(criterion=criterion, random_state=random_state, max_depth=max_depth)
     elif which == 'gbr':
         clf = GBR(loss='ls', random_state=random_state, n_estimators=n_estimators, max_depth=max_depth,
-                  criterion=criterion)
+                  criterion=criterion, learning_rate=learning_rate)
+    elif which == 'GBR':
+        clf = GradientBoostingRegressor(loss='ls', random_state=random_state, n_estimators=n_estimators,
+                                        max_depth=max_depth, criterion=criterion, learning_rate=learning_rate)
+    # train the model
     clf.fit(X, y)
 
     # visualise the data
