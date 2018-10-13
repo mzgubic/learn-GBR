@@ -6,13 +6,30 @@ from sklearn.datasets.samples_generator import make_blobs
 
 class GBR:
 
-    def __init__(self, loss):
+    def __init__(self, loss, n_estimators=2, criterion='friedman_mse', random_state='42'):
 
         self.loss = loss
+        self.n_estimators = n_estimators
+        self.random_state = random_state
+        self.estimators = []
+        self.criterion = criterion
 
+    def fit(self, X, y):
 
+        # fit the initial tree
+        self._estimators.append(DecisionTreeRegressor(criterion=self.criterion))
+        self._estimators.fit(X, y)
 
+        # fit the rest of them
 
+    def predict(self, X):
+
+        predictions = np.zeros(shape=y.shape)
+        for est in self.estimators:
+            preds = est.predict(X)
+            predictions += preds
+
+        return predictions
 
 
 def plot_decision_surface(clf, X, y, plot_step = 0.2, cmap='coolwarm', figsize=(12,8)):
@@ -31,12 +48,14 @@ def main():
     # create synthetic data
     N_p = 1000
     N_c = 3
-    X, y = make_blobs(n_samples=N_p, centers=N_c, n_features=2, center_box=(-5, 5))
+    random_state=42
+    np.random.seed(random_state)
+    X, y = make_blobs(n_samples=N_p, centers=N_c, n_features=2, center_box=(-5, 5), random_state=random_state)
     y = y + np.random.normal(0, 0.1, y.shape[0])
     df = pd.DataFrame(dict(x=X[:,0], y=X[:,1], label=y))
 
     # train a model
-    clf = DecisionTreeRegressor()
+    clf = DecisionTreeRegressor(random_state=random_state)
     clf.fit(X, y)
 
     # visualise the data
